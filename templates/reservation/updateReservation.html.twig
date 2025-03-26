@@ -1,0 +1,91 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Edit Reservation{% endblock %}
+
+{% block css %}
+    {{ parent() }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+{% endblock %}
+
+{% block body %}
+    <div class="container d-flex flex-column align-items-center" data-aos="zoom-in" data-aos-delay="100" style="padding-top: 120px;">
+        <!-- Back to List Link (Top Left) -->
+        <div class="w-100 d-flex justify-content-start mb-5" style="position: relative; z-index: 1000; margin-top: 20px; margin-bottom: 30px;">
+            <a href="{{ path('reservations') }}" class="btn" style="border: 2px solid #34b7a7; color: #34b7a7; border-radius: 50px; margin-top: 45px; padding: 10px 20px; transition: all 0.3s ease-in-out;" onmouseover="this.style.backgroundColor='#3dc8b7'; this.style.color='#fff';" onmouseout="this.style.backgroundColor='transparent'; this.style.color='#34b7a7';">Back to List</a>
+        </div>
+
+        <!-- Title -->
+        <h1 class="mb-4">Edit Reservation </h1>
+
+        <!-- Flash Messages -->
+        {% for message in app.flashes('success') %}
+            <div class="alert alert-success w-100" role="alert">{{ message }}</div>
+        {% endfor %}
+        {% for message in app.flashes('error') %}
+            <div class="alert alert-danger w-100" role="alert">{{ message }}</div>
+        {% endfor %}
+
+        <!-- Form with Border -->
+        <div class="w-100 p-4 border rounded shadow-sm" style="max-width: 600px; background-color: #fff;">
+            {{ form_start(f, {'attr': {'class': 'needs-validation', 'novalidate': ''}}) }}
+                <!-- Date Field -->
+                <div class="form-group mb-3">
+                    {{ form_label(f.date, null, {'label_attr': {'class': 'form-label'}}) }}
+                    {{ form_widget(f.date, {'attr': {'class': 'form-control datepicker'}}) }}
+                    {{ form_errors(f.date) }}
+                </div>
+
+                <!-- Time Field -->
+                <div class="form-group mb-3">
+                    {{ form_label(f.time, null, {'label_attr': {'class': 'form-label'}}) }}
+                    {{ form_widget(f.time, {'attr': {'class': 'form-control timepicker'}}) }}
+                    {{ form_errors(f.time) }}
+                </div>
+
+                <!-- Duration Field -->
+                <div class="form-group mb-3">
+                    {{ form_label(f.duration, null, {'label_attr': {'class': 'form-label'}}) }}
+                    {{ form_widget(f.duration) }}
+                    {{ form_errors(f.duration) }}
+                </div>
+
+                <!-- Sport Space Field -->
+                <div class="form-group mb-3">
+                    {{ form_label(f.sportSpace, null, {'label_attr': {'class': 'form-label'}}) }}
+                    {{ form_widget(f.sportSpace) }}
+                    {{ form_errors(f.sportSpace) }}
+                </div>
+
+                <!-- Update Button -->
+                <div class="form-group text-center mt-4">
+                    <button type="submit" class="btn btn-primary" style="background-color: #34b7a7; border-color: #34b7a7; border-radius: 50px; padding: 10px 30px;">
+                        Update Reservation
+                    </button>
+                </div>
+            {{ form_end(f) }}
+        </div>
+    </div>
+{% endblock %}
+
+{% block js %}
+    {{ parent() }}
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        $(document).ready(function() {
+            // Initialize date picker
+            $('.datepicker').flatpickr({
+                dateFormat: 'Y-m-d',
+                allowInput: true
+            });
+
+            // Initialize time picker
+            $('.timepicker').flatpickr({
+                enableTime: true,
+                noCalendar: true,
+                dateFormat: 'H:i',
+                time_24hr: true,
+                allowInput: true
+            });
+        });
+    </script>
+{% endblock %}

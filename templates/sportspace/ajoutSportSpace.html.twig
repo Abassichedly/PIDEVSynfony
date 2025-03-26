@@ -1,0 +1,250 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Add Sport Space{% endblock %}
+
+{% block css %}
+    {{ parent() }}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+    <style>
+        /* Ensure the body takes up the full viewport height */
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        section#hero {
+            padding: 20px 0;
+            background-color: #f8f9fa;
+            margin-top: 20px;
+            margin-bottom: 100px;
+        }
+
+        .form-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 30px;
+            padding-bottom: 50px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background-color: #fff;
+        }
+
+        .form-title {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        .btn-submit {
+            background-color: #34b7a7;
+            border: none;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .btn-back {
+            border: 2px solid #34b7a7;
+            color: #34b7a7;
+            border-radius: 50px;
+            padding: 10px 20px;
+            font-size: 16px;
+            text-decoration: none;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .btn-back:hover {
+            background-color: #34b7a7;
+            color: white;
+        }
+
+        /* Map Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.4);
+        }
+
+        .modal-content {
+            background-color: #fff;
+            margin: 10% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .map-container {
+            width: 100%;
+            height: 300px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        #search-box {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        #search-results {
+            max-height: 150px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .search-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .search-item:hover {
+            background: #f0f0f0;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+<section id="hero">
+    <div class="container">
+        <div class="form-container">
+            <div class="header-container">
+                <h2 class="form-title">Add New Sport Space</h2>
+                <a href="{{ path('sportspaces') }}" class="btn-back">Back to List</a>
+            </div>
+
+            {{ form_start(f) }}
+
+                <div class="form-group">
+                    {{ form_label(f.name) }}
+                    {{ form_widget(f.name, {'attr': {'class': 'form-control'}}) }}
+                </div>
+
+                <div class="form-group">
+                    {{ form_label(f.type) }}
+                    {{ form_widget(f.type, {'attr': {'class': 'form-select'}}) }}
+                </div>
+
+                <div class="form-group">
+                    {{ form_label(f.location) }}
+                    <input type="text" id="location-input" class="form-control" placeholder="Click to select location" readonly>
+                    <button type="button" id="open-map-btn" class="btn btn-secondary mt-2">Select Location</button>
+                    {{ form_widget(f.location, {'attr': {'class': 'form-control', 'style': 'display:none'}}) }}
+                </div>
+
+                <div class="form-group">
+                    {{ form_label(f.email) }}
+                    {{ form_widget(f.email, {'attr': {'class': 'form-control'}}) }}
+                </div>
+
+                <div class="form-group">
+                    {{ form_label(f.phone) }}
+                    {{ form_widget(f.phone, {'attr': {'class': 'form-control'}}) }}
+                </div>
+
+                <div class="form-group text-center">
+                    <button type="submit" class="btn-submit">Submit</button>
+                </div>
+
+            {{ form_end(f) }}
+        </div>
+    </div>
+</section>
+
+<!-- Map Popup -->
+<div id="map-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <input type="text" id="search-box" placeholder="Search location...">
+        <div id="search-results"></div>
+        <div id="map" class="map-container"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+    {{ parent() }}
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        let modal = document.getElementById("map-modal");
+        let openBtn = document.getElementById("open-map-btn");
+        let closeBtn = document.querySelector(".close");
+        let locationInput = document.getElementById("location-input");
+        let hiddenLocationField = document.querySelector("[name='{{ f.location.vars.full_name }}']");
+
+        let map = L.map('map').setView([36.8065, 10.1815], 13); // Default view on Tunis
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+        let marker;
+
+        openBtn.onclick = function() {
+            modal.style.display = "block";
+            setTimeout(() => map.invalidateSize(), 200);
+        };
+
+        closeBtn.onclick = function() { modal.style.display = "none"; };
+
+        document.getElementById("search-box").addEventListener("keyup", function() {
+            let query = this.value;
+            if (query.length < 3) return;
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`)
+                .then(response => response.json())
+                .then(data => {
+                    let resultsDiv = document.getElementById("search-results");
+                    resultsDiv.innerHTML = "";
+                    data.forEach(place => {
+                        let div = document.createElement("div");
+                        div.className = "search-item";
+                        div.innerHTML = place.display_name;
+                        div.onclick = function() {
+                            locationInput.value = place.display_name;
+                            hiddenLocationField.value = place.display_name;
+                            if (marker) map.removeLayer(marker);
+                            marker = L.marker([place.lat, place.lon]).addTo(map);
+                            map.setView([place.lat, place.lon], 15);
+                            modal.style.display = "none";
+                        };
+                        resultsDiv.appendChild(div);
+                    });
+                });
+        });
+    </script>
+{% endblock %}

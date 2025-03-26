@@ -1,0 +1,163 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Add Reservation{% endblock %}
+
+{% block css %}
+    {{ parent() }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .form-container {
+            max-width: 600px;
+            width: 100%;
+            padding: 2rem;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        .form-control, .form-select {
+            width: 100%;
+            padding: 0.85rem;
+            font-size: 1rem;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+            margin-bottom: 1rem;
+            height: 50px;
+        }
+        .btn-primary {
+            background-color: #34b7a7;
+            border-color: #34b7a7;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #2da194;
+            border-color: #2da194;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .btn-primary:active {
+            background-color: #268f83;
+            border-color: #268f83;
+            transform: translateY(0);
+        }
+        .btn-back {
+            border: 2px solid #34b7a7;
+            color: #34b7a7;
+            border-radius: 50px;
+            padding: 10px 20px;
+            font-size: 16px;
+            text-decoration: none;
+            transition: background-color 0.3s, color 0.3s;
+            position: absolute;
+            top: 67px;
+            left: 20px;
+        }
+        .btn-back:hover {
+            background-color: #34b7a7;
+            color: white;
+        }
+        .invalid-feedback {
+            color: #dc3545;
+            font-size: 0.875rem;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <div class="container" data-aos="zoom-in" data-aos-delay="100">
+
+        <!-- Back to List Button -->
+        <a href="{{ path('reservations') }}" class="btn btn-back">Back to List</a>
+
+        <!-- Form Title -->
+        <h1 class="mb-4 text-center">Add New Reservation</h1>
+
+        <!-- Flash Messages -->
+        {% for message in app.flashes('success') %}
+            <div class="alert alert-success w-100" role="alert">{{ message }}</div>
+        {% endfor %}
+        {% for message in app.flashes('error') %}
+            <div class="alert alert-danger w-100" role="alert">{{ message }}</div>
+        {% endfor %}
+
+        <!-- Form -->
+        <div class="form-container">
+            {{ form_start(form, {'attr': {'class': 'needs-validation', 'novalidate': ''}}) }}
+
+                <!-- Date Field -->
+                <div class="form-group mb-3">
+                    {{ form_label(form.date, null, {'label_attr': {'class': 'form-label'}}) }}
+                    {{ form_widget(form.date, {'attr': {'class': 'form-control datepicker'}}) }}
+                    {{ form_errors(form.date) }}
+                </div>
+
+                <!-- Time Field -->
+                <div class="form-group mb-3">
+                    {{ form_label(form.time, null, {'label_attr': {'class': 'form-label'}}) }}
+                    {{ form_widget(form.time, {'attr': {'class': 'form-control timepicker'}}) }}
+                    {{ form_errors(form.time) }}
+                </div>
+
+                <!-- Duration Field -->
+                <div class="form-group mb-3">
+                    {{ form_label(form.duration, null, {'label_attr': {'class': 'form-label'}}) }}
+                    {{ form_widget(form.duration, {'attr': {'class': 'form-control'}}) }}
+                    {{ form_errors(form.duration) }}
+                </div>
+
+                <!-- Sport Space Field -->
+                <div class="form-group mb-3">
+                    {{ form_label(form.sportSpace, null, {'label_attr': {'class': 'form-label'}}) }}
+                    {{ form_widget(form.sportSpace) }}
+                    {{ form_errors(form.sportSpace) }}
+                </div>
+
+                <!-- Submit Button -->
+                <div class="form-group text-center mt-4">
+                    <button type="submit" class="btn btn-primary">Save Reservation</button>
+                </div>
+
+            {{ form_end(form) }}
+        </div>
+    </div>
+{% endblock %}
+
+{% block js %}
+    {{ parent() }}
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Initialize date picker
+            flatpickr('.datepicker', {
+                dateFormat: 'Y-m-d',
+                allowInput: true,
+                minDate: "today"
+            });
+
+            // Initialize time picker
+            flatpickr('.timepicker', {
+                enableTime: true,
+                noCalendar: true,
+                dateFormat: 'H:i',
+                time_24hr: true,
+                allowInput: true
+            });
+        });
+    </script>
+{% endblock %}

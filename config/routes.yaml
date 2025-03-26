@@ -3,3 +3,11 @@ controllers:
         path: ../src/Controller/
         namespace: App\Controller
     type: attribute
+
+test_sportspaces:
+    path: /sportspaces
+    controller: App\Controller\TestController::testSportSpaces
+
+test_reservations:
+    path: /reservations
+    controller: App\Controller\TestController::testReservations

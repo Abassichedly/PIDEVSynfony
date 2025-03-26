@@ -1,0 +1,172 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Reservations{% endblock %}
+
+{% block css %}
+    {{ parent() }}
+    <style>
+        .table-container {
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
+            margin-bottom: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+        }
+        
+        .table-container table thead th {
+            position: sticky;
+            top: 0;
+            background: #343a40;
+            z-index: 10;
+        }
+        
+        .filter-container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .filter-row {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+    </style>
+{% endblock %}
+
+{% block js %}
+    {{ parent() }}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('search-input');
+            const dateFromInput = document.getElementById('date-from');
+            const dateToInput = document.getElementById('date-to');
+            const sortSelect = document.getElementById('sort-select');
+            const tableBody = document.querySelector('#reservations-table tbody');
+
+            function loadFilteredData() {
+                const params = new URLSearchParams();
+                
+                // Only include non-empty parameters
+                const searchValue = searchInput.value.trim();
+                if (searchValue) params.append('search', searchValue);
+                if (dateFromInput.value) params.append('dateFrom', dateFromInput.value);
+                if (dateToInput.value) params.append('dateTo', dateToInput.value);
+                params.append('sort', sortSelect.value);
+
+                fetch(`{{ path('reservations') }}?${params.toString()}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Network error');
+                    return response.text();
+                })
+                .then(html => {
+                    // Explicitly clear all existing rows in the table body
+                    while (tableBody.firstChild) {
+                        tableBody.removeChild(tableBody.firstChild);
+                    }
+                    // Insert the new rows from the AJAX response
+                    tableBody.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    while (tableBody.firstChild) {
+                        tableBody.removeChild(tableBody.firstChild);
+                    }
+                    tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error loading data</td></tr>`;
+                });
+            }
+
+            // Debounce the search input
+            let debounceTimer;
+            searchInput.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(loadFilteredData, 300);
+            });
+
+            // Immediate update for other filters
+            dateFromInput.addEventListener('change', loadFilteredData);
+            dateToInput.addEventListener('change', loadFilteredData);
+            sortSelect.addEventListener('change', loadFilteredData);
+
+            // Load initial data on page load
+            loadFilteredData();
+        });
+    </script>
+{% endblock %}
+
+{% block body %}
+<section id="hero" class="d-flex align-items-center">
+    <div class="container mt-5" data-aos="zoom-in">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Reservations</h1>
+            <a href="{{ path('addReservation') }}" class="btn" style="border: 2px solid #34b7a7; color: #34b7a7; border-radius: 50px; padding: 10px 20px;">Add New</a>
+        </div>
+
+        {% for message in app.flashes('success') %}
+            <div class="alert alert-success">{{ message }}</div>
+        {% endfor %}
+
+        <!-- Filter Section -->
+        <div class="filter-container">
+            <div class="filter-row">
+                <!-- Search -->
+                <div class="filter-group">
+                    <label for="search-input">Search by Sport Space Name</label>
+                    <input type="text" id="search-input" class="form-control" 
+                           placeholder="Search by sport space name"
+                           aria-label="Search reservations by sport space name">
+                </div>
+                
+                <!-- Date Range -->
+                <div class="filter-group">
+                    <label for="date-from">From Date</label>
+                    <input type="date" id="date-from" class="form-control">
+                </div>
+                
+                <div class="filter-group">
+                    <label for="date-to">To Date</label>
+                    <input type="date" id="date-to" class="form-control">
+                </div>
+                
+                <!-- Sort -->
+                <div class="filter-group">
+                    <label for="sort-select">Sort By</label>
+                    <select id="sort-select" class="form-select">
+                        <option value="date_asc">Date (Oldest)</option>
+                        <option value="date_desc">Date (Newest)</option>
+                        <option value="time_asc">Time (Earliest)</option>
+                        <option value="time_desc">Time (Latest)</option>
+                        <option value="duration_asc">Duration (Shortest)</option>
+                        <option value="duration_desc">Duration (Longest)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scrollable Table -->
+        <div class="table-container">
+            <table class="table table-striped table-hover" id="reservations-table">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Duration</th>
+                        <th>Sport Space</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Initial rows will be loaded via AJAX -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endblock %}
