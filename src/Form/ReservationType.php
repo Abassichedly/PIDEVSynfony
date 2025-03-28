@@ -3,6 +3,7 @@ namespace App\Form;
 
 use App\Entity\Reservation;
 use App\Entity\SportSpace;
+use App\Repository\SportSpaceRepository;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -13,9 +14,15 @@ use Symfony\Component\Form\CallbackTransformer;
 
 class ReservationType extends AbstractType
 {
+    private $sportSpaceRepository;
+
+    public function __construct(SportSpaceRepository $sportSpaceRepository)
+    {
+        $this->sportSpaceRepository = $sportSpaceRepository;
+    }
+
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
-        // Generate time choices (8:00, 8:30, ..., 23:30)
         $timeChoices = [];
         for ($h = 8; $h < 24; $h++) {
             foreach (['00', '30'] as $m) {
@@ -34,6 +41,14 @@ class ReservationType extends AbstractType
                     'autocomplete' => 'off'
                 ]
             ])
+            ->add('time', ChoiceType::class, [
+                'choices' => $timeChoices,
+                'attr' => [
+                    'class' => 'form-control timepicker',
+                    'autocomplete' => 'off'
+                ],
+                'label_attr' => ['class' => 'form-label']
+            ])
             ->add('duration', ChoiceType::class, [
                 'choices' => [
                     '30 minutes' => 0.5,
@@ -43,26 +58,26 @@ class ReservationType extends AbstractType
                     '2.5 hours' => 2.5,
                     '3 hours' => 3
                 ],
-                'attr' => ['class' => 'form-select mb-3'],
-                'label' => 'Duration',
-                'label_attr' => ['class' => 'form-label']
-            ])
-            ->add('time', ChoiceType::class, [
-                'choices' => $timeChoices,
-                'attr' => [
-                    'class' => 'form-control timepicker',
-                    'autocomplete' => 'off'
-                ],
+                'attr' => ['class' => 'form-select'],
                 'label_attr' => ['class' => 'form-label']
             ])
             ->add('sportSpace', EntityType::class, [
                 'class' => SportSpace::class,
                 'choice_label' => 'name',
                 'attr' => ['class' => 'form-select'],
-                'label_attr' => ['class' => 'form-label']
+                'label_attr' => ['class' => 'form-label'],
+                'choice_attr' => function(SportSpace $sportSpace) {
+                    return [
+                        'data-address' => $sportSpace->getLocation(),
+                        'data-name' => $sportSpace->getName()
+                    ];
+                },
+                'query_builder' => function() {
+                    return $this->sportSpaceRepository->createQueryBuilder('s')
+                        ->orderBy('s.name', 'ASC');
+                }
             ]);
 
-        // Add transformer for time field
         $builder->get('time')->addModelTransformer(new CallbackTransformer(
             function ($timeAsObject) {
                 return $timeAsObject ? $timeAsObject->format('H:i') : null;
@@ -77,7 +92,6 @@ class ReservationType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => Reservation::class,
-            'available_spaces' => []
         ]);
     }
 }

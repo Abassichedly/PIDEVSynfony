@@ -150,7 +150,13 @@ class SportSpaceRepository extends ServiceEntityRepository
 
     return $qb->getQuery()->getResult();
 }
-
+public function findAllWithLocations()
+{
+    return $this->createQueryBuilder('s')
+        ->select('s.idSportSpace as id, s.name, s.location as address')
+        ->getQuery()
+        ->getResult();
+}
 public function findAllTypes(): array
 {
     // Return both existing DB types and hardcoded options
@@ -167,5 +173,12 @@ public function findAllTypes(): array
 
     // Merge and remove duplicates
     return array_unique(array_merge($dbTypes, $defaultTypes));
+}
+public function findByAlphabeticalOrder()
+{
+    return $this->createQueryBuilder('s')
+        ->orderBy('s.name', 'ASC')
+        ->getQuery()
+        ->getResult();
 }
 }

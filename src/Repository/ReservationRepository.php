@@ -179,4 +179,20 @@ public function findWithFilters(?string $search, ?string $dateFrom, ?string $dat
 
     return $qb->getQuery()->getResult();
 }
+public function findReservationsBySportSpaceEntity(SportSpace $sportSpace): array
+    {
+        if (!$sportSpace) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('r')
+            ->leftJoin('r.sportSpace', 's')
+            ->addSelect('s')
+            ->where('r.sportSpace = :sportSpace')
+            ->setParameter('sportSpace', $sportSpace)
+            ->orderBy('r.date', 'ASC')
+            ->addOrderBy('r.time', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }

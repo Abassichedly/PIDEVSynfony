@@ -35,6 +35,65 @@
             flex: 1;
             min-width: 200px;
         }
+
+        /* Custom Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .modal-title {
+            margin: 0;
+            font-size: 1.25rem;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+            border: none;
+        }
     </style>
 {% endblock %}
 
@@ -66,18 +125,12 @@
                     return response.text();
                 })
                 .then(html => {
-                    // Explicitly clear all existing rows in the table body
-                    while (tableBody.firstChild) {
-                        tableBody.removeChild(tableBody.firstChild);
-                    }
-                    // Insert the new rows from the AJAX response
                     tableBody.innerHTML = html;
+                    // Re-setup delete buttons after content update
+                    setupDeleteButtons();
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    while (tableBody.firstChild) {
-                        tableBody.removeChild(tableBody.firstChild);
-                    }
                     tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error loading data</td></tr>`;
                 });
             }
@@ -93,6 +146,67 @@
             dateFromInput.addEventListener('change', loadFilteredData);
             dateToInput.addEventListener('change', loadFilteredData);
             sortSelect.addEventListener('change', loadFilteredData);
+
+            // Custom modal for delete confirmation
+            const modalOverlay = document.createElement('div');
+            modalOverlay.className = 'modal-overlay';
+            modalOverlay.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirm Deletion</h5>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        Are you sure you want to delete this reservation? This action cannot be undone.
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" id="cancelDelete">Cancel</button>
+                        <button class="btn btn-danger" id="confirmDelete">Delete</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modalOverlay);
+
+            let currentDeleteForm = null;
+
+            // Function to setup delete buttons
+            function setupDeleteButtons() {
+                const deleteButtons = document.querySelectorAll('.delete-btn');
+                
+                deleteButtons.forEach(button => {
+                    button.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        currentDeleteForm = this.closest('form');
+                        modalOverlay.style.display = 'flex';
+                    });
+                });
+            }
+
+            // Initial setup
+            setupDeleteButtons();
+
+            // Modal event listeners
+            modalOverlay.querySelector('.modal-close').addEventListener('click', () => {
+                modalOverlay.style.display = 'none';
+            });
+
+            document.getElementById('cancelDelete').addEventListener('click', () => {
+                modalOverlay.style.display = 'none';
+            });
+
+            document.getElementById('confirmDelete').addEventListener('click', () => {
+                if (currentDeleteForm) {
+                    currentDeleteForm.submit();
+                }
+                modalOverlay.style.display = 'none';
+            });
+
+            // Close modal when clicking outside
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) {
+                    modalOverlay.style.display = 'none';
+                }
+            });
 
             // Load initial data on page load
             loadFilteredData();

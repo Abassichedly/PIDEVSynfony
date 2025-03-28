@@ -12,10 +12,9 @@
     </td>
     <td>
         <a href="{{ path('updateSportSpace', {'id': space.idSportSpace}) }}" class="btn btn-sm btn-warning">Edit</a>
-        <form method="post" action="{{ path('delete_sportspace', {'id': space.idSportSpace}) }}" 
-              style="display:inline" onsubmit="return confirm('Are you sure?')">
+        <form method="post" action="{{ path('delete_sportspace', {'id': space.idSportSpace}) }}" style="display:inline">
             <input type="hidden" name="_method" value="DELETE">
-            <button class="btn btn-sm btn-danger">Delete</button>
+            <button class="btn btn-sm btn-danger delete-btn">Delete</button>
         </form>
     </td>
 </tr>

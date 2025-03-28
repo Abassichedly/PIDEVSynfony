@@ -16,6 +16,8 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Mime\Email;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 
 
 class TestController extends AbstractController
@@ -198,8 +200,73 @@ class TestController extends AbstractController
             'f' => $form // Pass the entity for use in the template
         ]);
     }
+    private function sendReservationListEmail(
+        SportSpace $sportSpace,
+        array $reservations,
+        MailerInterface $mailer,
+        \Psr\Log\LoggerInterface $logger,
+        \Symfony\Component\Mailer\Transport\TransportInterface $transport
+    ): void {
+        // Generate PDF
+        $pdfOptions = new Options();
+        $pdfOptions->set('defaultFont', 'Arial');
+        $dompdf = new Dompdf($pdfOptions);
+
+        $html = $this->renderView('reservation/reservations_pdf.html.twig', [
+            'sportSpace' => $sportSpace,
+            'reservations' => $reservations,
+            'date' => new \DateTime()
+        ]);
+
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+        $pdfOutput = $dompdf->output();
+
+        // Send email with PDF attachment
+        try {
+            $recipientEmail = $sportSpace->getEmail();
+            if (empty($recipientEmail) || !filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)) {
+                throw new \Exception('Invalid recipient email address: ' . ($recipientEmail ?: 'empty'));
+            }
+
+            $email = (new Email())
+                ->from('mohamedchedhly.abassi@etudiant-fsegt.utm.tn')
+                ->to($recipientEmail)
+                ->subject('Updated Reservation List for ' . $sportSpace->getName())
+                ->html("Dear " . $sportSpace->getName() . " Team,<br><br>" .
+                       "Please find attached the updated list of reservations for your sport space as of " . date('Y-m-d') . ".<br><br>" .
+                       "Best regards,<br>" .
+                       "SPORTIFY Team")
+                ->attach($pdfOutput, 'reservations_' . date('Y-m-d') . '.pdf', 'application/pdf');
+
+            $logger->info('Attempting to send reservation list email', [
+                'to' => $recipientEmail,
+                'sportSpace' => $sportSpace->getName()
+            ]);
+
+            $transport->send($email);
+
+            $logger->info('Reservation list email sent successfully to ' . $recipientEmail);
+            $this->addFlash('success', 'Email with updated reservation list sent to ' . $recipientEmail);
+        } catch (\Exception $e) {
+            $logger->error('Failed to send reservation list email: ' . $e->getMessage(), [
+                'exception' => $e,
+                'email' => $sportSpace->getEmail() ?? 'not set'
+            ]);
+            $this->addFlash('error', 'Operation completed but failed to send email: ' . $e->getMessage());
+        }
+    }
+
     #[Route('/addReservation', name: 'addReservation')]
-    public function addReservation(EntityManagerInterface $em, Request $req): Response
+    public function addReservation(
+        EntityManagerInterface $em, 
+        Request $req, 
+        ReservationRepository $reservationRepo,
+        MailerInterface $mailer,
+        \Psr\Log\LoggerInterface $logger,
+        \Symfony\Component\Mailer\Transport\TransportInterface $transport
+    ): Response
     {
         $reservation = new Reservation();
         $form = $this->createForm(ReservationType::class, $reservation);
@@ -207,8 +274,17 @@ class TestController extends AbstractController
         $form->handleRequest($req);
 
         if ($form->isSubmitted() && $form->isValid()) {
+            $sportSpace = $reservation->getSportSpace();
+            
+            // Persist the new reservation
             $em->persist($reservation);
             $em->flush();
+
+            // Get updated reservations and send email
+            $reservations = $reservationRepo->findReservationsBySportSpaceEntity($sportSpace);
+            $this->sendReservationListEmail($sportSpace, $reservations, $mailer, $logger, $transport);
+
+            $this->addFlash('success', 'Reservation created successfully!');
             return $this->redirectToRoute('reservations');
         }
 
@@ -216,12 +292,29 @@ class TestController extends AbstractController
             'form' => $form->createView()
         ]);
     }
+
     #[Route('/deleteReservation/{id}', name: 'delete_reservation')]
-    public function deleteReservation($id, ReservationRepository $repo): Response
+    public function deleteReservation(
+        $id, 
+        ReservationRepository $repo,
+        EntityManagerInterface $em,
+        MailerInterface $mailer,
+        \Psr\Log\LoggerInterface $logger,
+        \Symfony\Component\Mailer\Transport\TransportInterface $transport
+    ): Response
     {
         $reservation = $repo->find($id);
         if ($reservation) {
+            $sportSpace = $reservation->getSportSpace();
             $repo->remove($reservation);
+            
+            // Flush changes to database
+            $em->flush();
+
+            // Get updated reservations and send email
+            $reservations = $repo->findReservationsBySportSpaceEntity($sportSpace);
+            $this->sendReservationListEmail($sportSpace, $reservations, $mailer, $logger, $transport);
+
             $this->addFlash('success', 'Reservation deleted successfully!');
         } else {
             $this->addFlash('error', 'Reservation not found!');
@@ -230,26 +323,47 @@ class TestController extends AbstractController
     }
     
     #[Route('/updateReservation/{id}', name: 'update_reservation')]
-public function editReservation(EntityManagerInterface $em, Request $req, $id, ReservationRepository $rep): Response
-{
-    $reservation = $rep->find($id);
-    if (!$reservation) {
-        $this->addFlash('error', 'Reservation not found!');
-        return $this->redirectToRoute('reservations');
+    public function editReservation(
+        EntityManagerInterface $em, 
+        Request $req, 
+        $id, 
+        ReservationRepository $rep,
+        MailerInterface $mailer,
+        \Psr\Log\LoggerInterface $logger,
+        \Symfony\Component\Mailer\Transport\TransportInterface $transport
+    ): Response
+    {
+        $reservation = $rep->find($id);
+        if (!$reservation) {
+            $this->addFlash('error', 'Reservation not found!');
+            return $this->redirectToRoute('reservations');
+        }
+
+        $sportSpace = $reservation->getSportSpace(); // Store sportSpace before potential changes
+        $form = $this->createForm(ReservationType::class, $reservation);
+        $form->handleRequest($req);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $em->flush();
+
+            // Get updated reservations and send email
+            $updatedSportSpace = $reservation->getSportSpace(); // Check if sportSpace changed
+            $reservations = $rep->findReservationsBySportSpaceEntity($updatedSportSpace);
+            $this->sendReservationListEmail($updatedSportSpace, $reservations, $mailer, $logger, $transport);
+
+            // If sportSpace changed, send email to the old sportSpace too
+            if ($sportSpace !== $updatedSportSpace) {
+                $oldReservations = $rep->findReservationsBySportSpaceEntity($sportSpace);
+                $this->sendReservationListEmail($sportSpace, $oldReservations, $mailer, $logger, $transport);
+            }
+
+            $this->addFlash('success', 'Reservation updated successfully!');
+            return $this->redirectToRoute('reservations');
+        }
+
+        return $this->render('reservation/updateReservation.html.twig', [
+            'f' => $form->createView(),
+            'reservation' => $reservation
+        ]);
     }
-
-    $form = $this->createForm(ReservationType::class, $reservation);
-    $form->handleRequest($req);
-
-    if ($form->isSubmitted() && $form->isValid()) {
-        $em->flush();
-        $this->addFlash('success', 'Reservation updated successfully!');
-        return $this->redirectToRoute('reservations');
-    }
-
-    return $this->render('reservation/updateReservation.html.twig', [
-        'f' => $form->createView(),
-        'reservation' => $reservation
-    ]);
-}
 }
