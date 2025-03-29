@@ -134,13 +134,18 @@ public function isTimeSlotAvailable(\DateTimeInterface $date, string $time, Spor
         ->getQuery()
         ->getResult());
 }
-public function findWithFilters(?string $search, ?string $dateFrom, ?string $dateTo, ?string $sort): array
-{
+public function findWithFilters(
+    ?string $search, 
+    ?string $dateFrom, 
+    ?string $dateTo, 
+    ?string $sort,
+    ?string $duration = null
+): array {
     $qb = $this->createQueryBuilder('r')
-        ->join('r.sportSpace', 's')  // Use regular join instead of leftJoin
-        ->addSelect('s');           // Select the joined sportSpace
+        ->join('r.sportSpace', 's')
+        ->addSelect('s');
 
-    // Search filter (only when search term exists)
+    // Search filter
     if (!empty($search)) {
         $qb->andWhere('s.name LIKE :search')
            ->setParameter('search', '%' . $search . '%');
@@ -154,6 +159,12 @@ public function findWithFilters(?string $search, ?string $dateFrom, ?string $dat
     if ($dateTo) {
         $qb->andWhere('r.date <= :dateTo')
            ->setParameter('dateTo', new \DateTime($dateTo));
+    }
+
+    // Duration filter
+    if ($duration !== null) {
+        $qb->andWhere('r.duration = :duration')
+           ->setParameter('duration', (float)$duration);
     }
 
     // Sorting
@@ -179,6 +190,7 @@ public function findWithFilters(?string $search, ?string $dateFrom, ?string $dat
 
     return $qb->getQuery()->getResult();
 }
+
 public function findReservationsBySportSpaceEntity(SportSpace $sportSpace): array
     {
         if (!$sportSpace) {

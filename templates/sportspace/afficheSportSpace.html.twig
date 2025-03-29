@@ -5,21 +5,63 @@
 {% block css %}
     {{ parent() }}
     <style>
-        /* Table container with scroll */
         .table-container {
-            max-height: calc(100vh - 300px);
+            max-height: calc(100vh - 400px); /* Reduced height to prevent footer overlap */
             overflow-y: auto;
             margin-bottom: 20px;
             border: 1px solid #dee2e6;
             border-radius: 8px;
+            position: relative; /* For proper sticky header positioning */
         }
         
-        /* Fixed header */
+        .table-container table {
+            width: 100%;
+            margin-bottom: 0; /* Remove default margin */
+        }
+        
         .table-container table thead th {
             position: sticky;
             top: 0;
             background: #343a40;
             z-index: 10;
+            padding: 12px 15px; /* Added padding */
+        }
+        
+        .table-container table tbody td {
+            padding: 10px 15px; /* Added padding */
+            vertical-align: middle; /* Better vertical alignment */
+        }
+        
+        /* Ensure table cells don't overflow */
+        .table-container table td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px; /* Adjust based on your needs */
+        }
+        
+        /* Filter section adjustments */
+        .filter-container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        /* Modal styles remain the same */
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .filter-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .filter-group {
+                min-width: 100%;
+            }
+            .table-container {
+                max-height: calc(100vh - 450px); /* More space on mobile */
+            }
         }
         
         /* Filter styles */
@@ -97,11 +139,62 @@
             color: white;
             border: none;
         }
+         .charts-modal {
+            position: fixed;
+            top: 20px;
+            left: 0;
+            right: 0;
+            bottom: 20px;
+            background-color: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: flex-start;
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 20px 0;
+        }
+        .charts-modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 1000px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        .charts-container {
+            display: flex;
+            gap: 30px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .chart-wrapper {
+            flex: 1;
+            min-width: 450px;
+            min-height: 450px;
+        }
+        .show-charts-btn {
+            margin-top: 20px;
+            background: #34b7a7;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        /* Chart specific styles */
+        #type-chart, #status-chart {
+            width: 100% !important;
+            height: 450px !important;
+        }
     </style>
 {% endblock %}
 
 {% block js %}
     {{ parent() }}
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const searchInput = document.getElementById('search-input');
@@ -208,6 +301,104 @@
                     modalOverlay.style.display = 'none';
                 }
             });
+        const chartsModal = document.createElement('div');
+            chartsModal.className = 'charts-modal';
+            chartsModal.innerHTML = `
+                <div class="charts-modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Sport Space Statistics</h5>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="charts-container">
+                        <div id="type-chart" class="chart-wrapper"></div>
+                        <div id="status-chart" class="chart-wrapper"></div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(chartsModal);
+            
+            // Add show charts button
+            const showChartsBtn = document.createElement('button');
+            showChartsBtn.className = 'show-charts-btn';
+            showChartsBtn.textContent = 'Show Statistics';
+            document.querySelector('.filter-container').appendChild(showChartsBtn);
+            
+            // Charts modal event listeners
+            chartsModal.querySelector('.modal-close').addEventListener('click', () => {
+                chartsModal.style.display = 'none';
+            });
+            
+            showChartsBtn.addEventListener('click', () => {
+                loadChartsData();
+                chartsModal.style.display = 'flex';
+            });
+            
+            chartsModal.addEventListener('click', (e) => {
+                if (e.target === chartsModal) {
+                    chartsModal.style.display = 'none';
+                }
+            });
+            
+            // Load Google Charts
+            google.charts.load('current', {'packages':['corechart']});
+            
+            function loadChartsData() {
+                const params = new URLSearchParams();
+                
+                // Apply current filters
+                const searchValue = searchInput.value.trim();
+                if (searchValue) params.append('search', searchValue);
+                if (typeSelect.value !== 'all') params.append('type', typeSelect.value);
+                if (availabilitySelect.value !== 'all') params.append('availability', availabilitySelect.value);
+                params.append('sort', sortSelect.value);
+                params.append('charts', 'true');
+                
+                fetch(`{{ path('sportspaces') }}?${params.toString()}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Network error');
+                    return response.json();
+                })
+                .then(data => {
+                    drawCharts(data);
+                })
+                .catch(error => {
+                    console.error('Error loading chart data:', error);
+                });
+            }
+            
+            function drawCharts(data) {
+                // Type Distribution Chart
+                const typeData = new google.visualization.DataTable();
+                typeData.addColumn('string', 'Type');
+                typeData.addColumn('number', 'Count');
+                typeData.addRows(data.typeData);
+                
+                const typeChart = new google.visualization.PieChart(
+                    document.getElementById('type-chart')
+                );
+                typeChart.draw(typeData, {
+                    title: 'Type Distribution',
+                    pieHole: 0.4,
+                    backgroundColor: 'transparent'
+                });
+                
+                // Status Distribution Chart
+                const statusData = new google.visualization.DataTable();
+                statusData.addColumn('string', 'Status');
+                statusData.addColumn('number', 'Count');
+                statusData.addRows(data.statusData);
+                
+                const statusChart = new google.visualization.ColumnChart(
+                    document.getElementById('status-chart')
+                );
+                statusChart.draw(statusData, {
+                    title: 'Status Distribution',
+                    legend: { position: 'none' },
+                    backgroundColor: 'transparent'
+                });
+            }
         });
     </script>
 {% endblock %}

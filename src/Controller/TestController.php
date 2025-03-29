@@ -37,14 +37,50 @@ class TestController extends AbstractController
             $type = $request->query->get('type');
             $sort = $request->query->get('sort');
             $availability = $request->query->get('availability');
+            $charts = $request->query->get('charts');
     
             $sportSpaces = $repo->findWithFilters($search, $type, $sort, $availability);
     
-            return $this->render('sportspace/_table.html.twig', [
-                'sportSpaces' => $sportSpaces
-            ]);
+            if ($charts) {
+                // Prepare data for charts
+                $typeData = [];
+                $statusData = [];
+                
+                // Group by type
+                $typeCounts = [];
+                foreach ($sportSpaces as $space) {
+                    $type = $space->getType();
+                    $typeCounts[$type] = ($typeCounts[$type] ?? 0) + 1;
+                }
+                foreach ($typeCounts as $type => $count) {
+                    $typeData[] = [$type, $count];
+                }
+                
+                // Group by status
+                $statusCounts = [
+                    'Available' => 0,
+                    'Unavailable' => 0
+                ];
+                foreach ($sportSpaces as $space) {
+                    $status = $space->isAvailability() ? 'Available' : 'Unavailable';
+                    $statusCounts[$status]++;
+                }
+                foreach ($statusCounts as $status => $count) {
+                    $statusData[] = [$status, $count];
+                }
+                
+                return $this->json([
+                    'typeData' => $typeData,
+                    'statusData' => $statusData
+                ]);
+            } else {
+                // Original table response
+                return $this->render('sportspace/_table.html.twig', [
+                    'sportSpaces' => $sportSpaces
+                ]);
+            }
         }
-    
+        
         // Initial page load
         $types = $repo->findAllTypes();
         $initialData = $repo->findWithFilters(null, 'all', 'name_asc', 'all');
@@ -54,13 +90,6 @@ class TestController extends AbstractController
             'sportTypes' => $types
         ]);
     }
-    
-    #[Route('/sportspaces/types', name: 'sportspaces_types')]
-    public function getSportTypes(SportSpaceRepository $repo): JsonResponse
-    {
-        $types = $repo->findAllTypes();
-        return $this->json($types);
-    }
 
     #[Route('/reservations', name: 'reservations')]
     public function showReservations(ReservationRepository $repo, Request $request): Response
@@ -69,16 +98,49 @@ class TestController extends AbstractController
         $dateFrom = $request->query->get('dateFrom');
         $dateTo = $request->query->get('dateTo');
         $sort = $request->query->get('sort', 'date_asc');
+        $duration = $request->query->get('duration');
+        $charts = $request->query->get('charts');
+    
+        $reservations = $repo->findWithFilters($search, $dateFrom, $dateTo, $sort, $duration);
     
         if ($request->isXmlHttpRequest()) {
-            $reservations = $repo->findWithFilters($search, $dateFrom, $dateTo, $sort);
-            return $this->render('reservation/_table.html.twig', [
-                'reservations' => $reservations
-            ]);
+            if ($charts) {
+                // Prepare data for charts
+                $durationData = [];
+                $spaceData = [];
+                
+                // Group by duration
+                $durationCounts = [];
+                foreach ($reservations as $reservation) {
+                    $duration = $reservation->getDuration() . 'h';
+                    $durationCounts[$duration] = ($durationCounts[$duration] ?? 0) + 1;
+                }
+                foreach ($durationCounts as $duration => $count) {
+                    $durationData[] = [$duration, $count];
+                }
+                
+                // Group by space
+                $spaceCounts = [];
+                foreach ($reservations as $reservation) {
+                    $spaceName = $reservation->getSportSpace()->getName();
+                    $spaceCounts[$spaceName] = ($spaceCounts[$spaceName] ?? 0) + 1;
+                }
+                foreach ($spaceCounts as $space => $count) {
+                    $spaceData[] = [$space, $count];
+                }
+                
+                return $this->json([
+                    'durationData' => $durationData,
+                    'spaceData' => $spaceData
+                ]);
+            } else {
+                // Original table response
+                $html = $this->renderView('reservation/_table.html.twig', [
+                    'reservations' => $reservations
+                ]);
+                return new Response($html);
+            }
         }
-    
-        // Initial load - empty search to get all records
-        $reservations = $repo->findWithFilters('', null, null, 'date_asc');
         
         return $this->render('reservation/afficheReservation.html.twig', [
             'reservations' => $reservations
