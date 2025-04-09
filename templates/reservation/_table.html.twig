@@ -1,0 +1,23 @@
+<tbody>
+    {% for reservation in reservations %}
+    <tr>
+        <td>{{ reservation.date|date('Y-m-d') }}</td>
+        <td>{{ reservation.time|date('H:i') }}</td>
+        <td>{{ reservation.duration }} hours</td>
+        <td>{{ reservation.sportSpace.name }}</td>
+        <td>
+            <a href="{{ path('update_reservation', {'id': reservation.idReservation}) }}" 
+               class="btn btn-sm btn-warning">Edit</a>
+            <form method="post" action="{{ path('delete_reservation', {'id': reservation.idReservation}) }}" 
+                  style="display:inline">
+                <input type="hidden" name="_method" value="DELETE">
+                <button class="btn btn-sm btn-danger delete-btn">Delete</button>
+            </form>
+        </td>
+    </tr>
+    {% else %}
+    <tr class="no-results">
+        <td colspan="6" class="text-center">No reservations found</td>
+    </tr>
+    {% endfor %}
+</tbody>

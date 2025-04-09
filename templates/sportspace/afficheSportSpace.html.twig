@@ -1,0 +1,484 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Sport Spaces{% endblock %}
+
+{% block css %}
+    {{ parent() }}
+    <style>
+        .table-container {
+            max-height: calc(100vh - 400px); /* Reduced height to prevent footer overlap */
+            overflow-y: auto;
+            margin-bottom: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            position: relative; /* For proper sticky header positioning */
+        }
+        
+        .table-container table {
+            width: 100%;
+            margin-bottom: 0; /* Remove default margin */
+        }
+        
+        .table-container table thead th {
+            position: sticky;
+            top: 0;
+            background: #343a40;
+            z-index: 10;
+            padding: 12px 15px; /* Added padding */
+        }
+        
+        .table-container table tbody td {
+            padding: 10px 15px; /* Added padding */
+            vertical-align: middle; /* Better vertical alignment */
+        }
+        
+        /* Ensure table cells don't overflow */
+        .table-container table td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px; /* Adjust based on your needs */
+        }
+        
+        /* Filter section adjustments */
+        .filter-container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        /* Modal styles remain the same */
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .filter-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .filter-group {
+                min-width: 100%;
+            }
+            .table-container {
+                max-height: calc(100vh - 450px); /* More space on mobile */
+            }
+        }
+        
+        /* Filter styles */
+        .filter-container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .filter-row {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        /* Custom Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .modal-title {
+            margin: 0;
+            font-size: 1.25rem;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+            border: none;
+        }
+         .charts-modal {
+            position: fixed;
+            top: 20px;
+            left: 0;
+            right: 0;
+            bottom: 20px;
+            background-color: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: flex-start;
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 20px 0;
+        }
+        .charts-modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 1000px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        .charts-container {
+            display: flex;
+            gap: 30px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .chart-wrapper {
+            flex: 1;
+            min-width: 450px;
+            min-height: 450px;
+        }
+        .show-charts-btn {
+            margin-top: 20px;
+            background: #34b7a7;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        /* Chart specific styles */
+        #type-chart, #status-chart {
+            width: 100% !important;
+            height: 450px !important;
+        }
+    </style>
+{% endblock %}
+
+{% block js %}
+    {{ parent() }}
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('search-input');
+            const typeSelect = document.getElementById('type-select');
+            const sortSelect = document.getElementById('sort-select');
+            const availabilitySelect = document.getElementById('availability-select');
+            const tableBody = document.querySelector('#sportspaces-table tbody');
+
+            // Debounce function to limit AJAX calls
+            let debounceTimer;
+            function debounce(callback, delay) {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(callback, delay);
+            }
+
+            // Function to load filtered data
+            function loadFilteredData() {
+                const params = new URLSearchParams({
+                    search: searchInput.value,
+                    type: typeSelect.value,
+                    sort: sortSelect.value,
+                    availability: availabilitySelect.value
+                });
+
+                fetch(`{{ path('sportspaces') }}?${params.toString()}`, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.text())
+                .then(html => {
+                    tableBody.innerHTML = html;
+                    // Reset scroll position after update
+                    document.querySelector('.table-container').scrollTop = 0;
+                    // Re-setup delete buttons after content update
+                    setupDeleteButtons();
+                })
+                .catch(error => console.error('Error:', error));
+            }
+
+            // Event listeners with debounce
+            searchInput.addEventListener('input', () => debounce(loadFilteredData, 300));
+            typeSelect.addEventListener('change', loadFilteredData);
+            sortSelect.addEventListener('change', loadFilteredData);
+            availabilitySelect.addEventListener('change', loadFilteredData);
+
+            // Custom modal for delete confirmation
+            const modalOverlay = document.createElement('div');
+            modalOverlay.className = 'modal-overlay';
+            modalOverlay.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirm Deletion</h5>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        Are you sure you want to delete this sport space? This action cannot be undone.
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" id="cancelDelete">Cancel</button>
+                        <button class="btn btn-danger" id="confirmDelete">Delete</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modalOverlay);
+
+            let currentDeleteForm = null;
+
+            // Function to setup delete buttons
+            function setupDeleteButtons() {
+                const deleteButtons = document.querySelectorAll('.delete-btn');
+                
+                deleteButtons.forEach(button => {
+                    button.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        currentDeleteForm = this.closest('form');
+                        modalOverlay.style.display = 'flex';
+                    });
+                });
+            }
+
+            // Initial setup
+            setupDeleteButtons();
+
+            // Modal event listeners
+            modalOverlay.querySelector('.modal-close').addEventListener('click', () => {
+                modalOverlay.style.display = 'none';
+            });
+
+            document.getElementById('cancelDelete').addEventListener('click', () => {
+                modalOverlay.style.display = 'none';
+            });
+
+            document.getElementById('confirmDelete').addEventListener('click', () => {
+                if (currentDeleteForm) {
+                    currentDeleteForm.submit();
+                }
+                modalOverlay.style.display = 'none';
+            });
+
+            // Close modal when clicking outside
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) {
+                    modalOverlay.style.display = 'none';
+                }
+            });
+        const chartsModal = document.createElement('div');
+            chartsModal.className = 'charts-modal';
+            chartsModal.innerHTML = `
+                <div class="charts-modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Sport Space Statistics</h5>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="charts-container">
+                        <div id="type-chart" class="chart-wrapper"></div>
+                        <div id="status-chart" class="chart-wrapper"></div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(chartsModal);
+            
+            // Add show charts button
+            const showChartsBtn = document.createElement('button');
+            showChartsBtn.className = 'show-charts-btn';
+            showChartsBtn.textContent = 'Show Statistics';
+            document.querySelector('.filter-container').appendChild(showChartsBtn);
+            
+            // Charts modal event listeners
+            chartsModal.querySelector('.modal-close').addEventListener('click', () => {
+                chartsModal.style.display = 'none';
+            });
+            
+            showChartsBtn.addEventListener('click', () => {
+                loadChartsData();
+                chartsModal.style.display = 'flex';
+            });
+            
+            chartsModal.addEventListener('click', (e) => {
+                if (e.target === chartsModal) {
+                    chartsModal.style.display = 'none';
+                }
+            });
+            
+            // Load Google Charts
+            google.charts.load('current', {'packages':['corechart']});
+            
+            function loadChartsData() {
+                const params = new URLSearchParams();
+                
+                // Apply current filters
+                const searchValue = searchInput.value.trim();
+                if (searchValue) params.append('search', searchValue);
+                if (typeSelect.value !== 'all') params.append('type', typeSelect.value);
+                if (availabilitySelect.value !== 'all') params.append('availability', availabilitySelect.value);
+                params.append('sort', sortSelect.value);
+                params.append('charts', 'true');
+                
+                fetch(`{{ path('sportspaces') }}?${params.toString()}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Network error');
+                    return response.json();
+                })
+                .then(data => {
+                    drawCharts(data);
+                })
+                .catch(error => {
+                    console.error('Error loading chart data:', error);
+                });
+            }
+            
+            function drawCharts(data) {
+                // Type Distribution Chart
+                const typeData = new google.visualization.DataTable();
+                typeData.addColumn('string', 'Type');
+                typeData.addColumn('number', 'Count');
+                typeData.addRows(data.typeData);
+                
+                const typeChart = new google.visualization.PieChart(
+                    document.getElementById('type-chart')
+                );
+                typeChart.draw(typeData, {
+                    title: 'Type Distribution',
+                    pieHole: 0.4,
+                    backgroundColor: 'transparent'
+                });
+                
+                // Status Distribution Chart
+                const statusData = new google.visualization.DataTable();
+                statusData.addColumn('string', 'Status');
+                statusData.addColumn('number', 'Count');
+                statusData.addRows(data.statusData);
+                
+                const statusChart = new google.visualization.ColumnChart(
+                    document.getElementById('status-chart')
+                );
+                statusChart.draw(statusData, {
+                    title: 'Status Distribution',
+                    legend: { position: 'none' },
+                    backgroundColor: 'transparent'
+                });
+            }
+        });
+    </script>
+{% endblock %}
+
+{% block body %}
+<section id="hero" class="d-flex align-items-center">
+    <div class="container mt-5" data-aos="zoom-in">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Sport Spaces</h1>
+            <a href="{{ path('addSportSpaces') }}" class="btn" style="border: 2px solid #34b7a7; color: #34b7a7; border-radius: 50px; padding: 10px 20px;">Add New</a>
+        </div>
+
+        <!-- Flash messages -->
+        {% for message in app.flashes('success') %}
+            <div class="alert alert-success">{{ message }}</div>
+        {% endfor %}
+
+        <!-- Filter Section -->
+        <div class="filter-container">
+            <div class="filter-row">
+                <!-- Search -->
+                <div class="filter-group">
+                    <label for="search-input">Search</label>
+                    <input type="text" id="search-input" class="form-control" placeholder="Name, location or phone">
+                </div>
+                
+                <!-- Type Filter -->
+                <div class="filter-group">
+                    <label for="type-select">Type</label>
+                    <select id="type-select" class="form-select">
+                        <option value="all">All Types</option>
+                        {% for type in sportTypes|sort %}
+                        <option value="{{ type }}">{{ type|capitalize }}</option> 
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Sort -->
+                <div class="filter-group">
+                    <label for="sort-select">Sort By</label>
+                    <select id="sort-select" class="form-select">
+                        <option value="name_asc">Name (A-Z)</option>
+                        <option value="name_desc">Name (Z-A)</option>
+                        <option value="location_asc">Location (A-Z)</option>
+                        <option value="location_desc">Location (Z-A)</option>
+                        <option value="type_asc">Type (A-Z)</option>
+                    </select>
+                </div>
+                
+                <!-- Availability -->
+                <div class="filter-group">
+                    <label for="availability-select">Status</label>
+                    <select id="availability-select" class="form-select">
+                        <option value="all">All</option>
+                        <option value="available">Available</option>
+                        <option value="unavailable">Unavailable</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scrollable Table Container -->
+        <div class="table-container">
+            <table class="table table-striped table-hover" id="sportspaces-table">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Email</th>
+                        <th>Location</th>
+                        <th>Phone</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% include 'sportspace/_table.html.twig' %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endblock %}

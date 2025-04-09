@@ -1,0 +1,419 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Add Reservation{% endblock %}
+
+{% block css %}
+    {{ parent() }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        /* Body and Layout */
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            padding-top: 80px; /* Increased from default for more navbar space */
+        }
+        
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 6rem 0 2rem; /* 6rem top padding = ~96px */
+            min-height: calc(100vh - 150px);
+        }
+
+        .form-container {
+            max-width: 600px;
+            width: 100%;
+            padding: 2.5rem;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+            margin: 3rem auto; /* Increased top margin */
+        }
+
+        /* Form Elements */
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .form-control, .form-select {
+            width: 100%;
+            padding: 0.85rem;
+            font-size: 1rem;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+            margin-bottom: 1rem;
+            height: 50px;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background-color: #34b7a7;
+            border-color: #34b7a7;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2da194;
+            border-color: #2da194;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .btn-primary:active {
+            background-color: #268f83;
+            border-color: #268f83;
+            transform: translateY(0);
+        }
+        
+        .btn-back, .btn-weather {
+            border: 2px solid #34b7a7;
+            color: #34b7a7;
+            border-radius: 50px;
+            padding: 10px 20px;
+            font-size: 16px;
+            text-decoration: none;
+            transition: background-color 0.3s, color 0.3s;
+            position: absolute;
+            top: 100px; /* Increased from 67px */
+        }
+        
+        .btn-back {
+            left: 20px;
+        }
+        
+        .btn-weather {
+            right: 20px;
+        }
+        
+        .btn-back:hover, .btn-weather:hover {
+            background-color: #34b7a7;
+            color: white;
+        }
+
+        /* Validation */
+        .invalid-feedback {
+            color: #dc3545;
+            font-size: 0.875rem;
+        }
+
+        /* Weather Popup */
+        .weather-man-popup {
+            position: fixed;
+            top: 20%;
+            right: 20px;
+            background: linear-gradient(135deg, #34b7a7 0%, #2da194 100%);
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            z-index: 1000;
+            width: 320px;
+            display: none;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .weather-man-popup.show {
+            display: block !important;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .weather-man-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .weather-man-location {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .weather-man-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .weather-man-close:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .weather-main {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .weather-icon {
+            font-size: 3.5rem;
+            margin-right: 1rem;
+        }
+        
+        .weather-temp {
+            font-size: 2.5rem;
+            font-weight: 300;
+        }
+        
+        .weather-desc {
+            text-transform: capitalize;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .weather-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.8rem;
+            margin-top: 1rem;
+        }
+        
+        .weather-detail {
+            background: rgba(255,255,255,0.1);
+            padding: 0.8rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .detail-label {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            margin-bottom: 0.3rem;
+        }
+        
+        .detail-value {
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        
+        .weather-man-error {
+            color: #ffdddd;
+            background: rgba(255,0,0,0.2);
+            padding: 0.8rem;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 1rem;
+        }
+        
+        .weather-footer {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        /* Additional Spacing */
+        h1.mb-4 {
+            margin-top: 1.5rem; /* Added space above the title */
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <div class="container" data-aos="zoom-in" data-aos-delay="100">
+        <a href="{{ path('reservations') }}" class="btn btn-back">Back to List</a>
+        <button type="button" id="weatherManBtn" class="btn btn-weather">Weather Forecast</button>
+        <h1 class="mb-4 text-center">Add New Reservation</h1>
+
+        {% for message in app.flashes('success') %}
+            <div class="alert alert-success w-100" role="alert">{{ message }}</div>
+        {% endfor %}
+        {% for message in app.flashes('error') %}
+            <div class="alert alert-danger w-100" role="alert">{{ message }}</div>
+        {% endfor %}
+
+        <div class="form-container">
+            {{ form_start(form, {'attr': {'class': 'needs-validation', 'novalidate': ''}}) }}
+                {{ form_row(form.date) }}
+                {{ form_row(form.time) }}
+                {{ form_row(form.duration) }}
+                {{ form_row(form.sportSpace) }}
+
+                <div class="form-group text-center mt-4">
+                    <button type="submit" class="btn btn-primary">Save Reservation</button>
+                </div>
+            {{ form_end(form) }}
+        </div>
+
+        <div class="weather-man-popup" id="weatherManPopup">
+            <div class="weather-man-header">
+                <h3 class="weather-man-location" id="weatherManLocation">Location</h3>
+                <button class="weather-man-close" id="closeWeatherMan">×</button>
+            </div>
+            
+            <div class="weather-main">
+                <div class="weather-icon" id="weatherManIcon">🌞</div>
+                <div>
+                    <div class="weather-temp" id="weatherManTemp">--°C</div>
+                    <div class="weather-desc" id="weatherManDesc">--</div>
+                </div>
+            </div>
+            
+            <div class="weather-details">
+                <div class="weather-detail">
+                    <div class="detail-label">Feels Like</div>
+                    <div class="detail-value" id="weatherFeelsLike">--°C</div>
+                </div>
+                <div class="weather-detail">
+                    <div class="detail-label">Humidity</div>
+                    <div class="detail-value" id="weatherHumidity">--%</div>
+                </div>
+                <div class="weather-detail">
+                    <div class="detail-label">Wind</div>
+                    <div class="detail-value" id="weatherWind">-- km/h</div>
+                </div>
+                <div class="weather-detail">
+                    <div class="detail-label">Pressure</div>
+                    <div class="detail-value" id="weatherPressure">-- hPa</div>
+                </div>
+            </div>
+            
+            <div class="weather-footer" id="weatherUpdatedAt">Updated: Just now</div>
+            
+            <div class="weather-man-error" id="weatherManError"></div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block js %}
+    {{ parent() }}
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Initialize date and time pickers
+            flatpickr('.datepicker', {
+                dateFormat: 'Y-m-d',
+                minDate: "today",
+                allowInput: true
+            });
+
+            flatpickr('.timepicker', {
+                enableTime: true,
+                noCalendar: true,
+                dateFormat: 'H:i',
+                time_24hr: true,
+                allowInput: true
+            });
+
+            // Weather functionality
+            const weatherManBtn = document.getElementById('weatherManBtn');
+            const weatherManPopup = document.getElementById('weatherManPopup');
+            const closeWeatherMan = document.getElementById('closeWeatherMan');
+            const sportSpaceSelect = document.getElementById('{{ form.sportSpace.vars.id }}');
+
+            weatherManBtn.addEventListener('click', async function() {
+                const selectedOption = sportSpaceSelect.selectedOptions[0];
+                
+                if (!selectedOption || !selectedOption.value) {
+                    document.getElementById('weatherManError').textContent = 'Please select a sport space first to check the weather';
+                    weatherManPopup.classList.add('show');
+                    return;
+                }
+
+                const address = selectedOption.dataset.address;
+                const locationName = selectedOption.text;
+
+                try {
+                    // Show loading state
+                    document.getElementById('weatherManLocation').textContent = 'Loading...';
+                    document.getElementById('weatherManError').textContent = '';
+                    
+                    // Get coordinates
+                    const geocodeResponse = await fetch(
+                        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`,
+                        { headers: { 'User-Agent': 'SportsReservationApp/1.0' } }
+                    );
+                    const geocodeData = await geocodeResponse.json();
+
+                    if (!geocodeData.length) {
+                        throw new Error('Location not found');
+                    }
+
+                    // Get weather
+                    const weatherResponse = await fetch(
+                        `https://api.openweathermap.org/data/2.5/weather?lat=${geocodeData[0].lat}&lon=${geocodeData[0].lon}&appid=4f17fb04a29592dc3d613fba4e7fdcb5&units=metric`
+                    );
+                    const weatherData = await weatherResponse.json();
+
+                    if (weatherData.cod !== 200) {
+                        throw new Error(weatherData.message || 'Failed to get weather data');
+                    }
+
+                    // Update UI with weather data
+                    document.getElementById('weatherManLocation').textContent = locationName;
+                    document.getElementById('weatherManTemp').textContent = `${Math.round(weatherData.main.temp)}°C`;
+                    document.getElementById('weatherManDesc').textContent = weatherData.weather[0].description;
+                    document.getElementById('weatherFeelsLike').textContent = `${Math.round(weatherData.main.feels_like)}°C`;
+                    document.getElementById('weatherHumidity').textContent = `${weatherData.main.humidity}%`;
+                    document.getElementById('weatherWind').textContent = `${Math.round(weatherData.wind.speed * 3.6)} km/h`;
+                    document.getElementById('weatherPressure').textContent = `${weatherData.main.pressure} hPa`;
+                    
+                    // Format update time
+                    const now = new Date();
+                    document.getElementById('weatherUpdatedAt').textContent = `Updated: ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                    
+                    // Set appropriate weather icon
+                    const weatherIcon = getWeatherIcon(weatherData.weather[0].id, weatherData.weather[0].icon);
+                    document.getElementById('weatherManIcon').textContent = weatherIcon;
+                    
+                    // Show popup
+                    weatherManPopup.classList.add('show');
+                } catch (error) {
+                    document.getElementById('weatherManError').textContent = error.message;
+                    weatherManPopup.classList.add('show');
+                }
+            });
+
+            closeWeatherMan.addEventListener('click', function() {
+                weatherManPopup.classList.remove('show');
+            });
+            
+            // Helper function to get appropriate weather icon
+            function getWeatherIcon(weatherId, iconCode) {
+                // Check if it's night time (icon code ends with 'n')
+                const isNight = iconCode.endsWith('n');
+                
+                if (weatherId >= 200 && weatherId < 300) {
+                    return '⛈️'; // Thunderstorm
+                } else if (weatherId >= 300 && weatherId < 400) {
+                    return '🌧️'; // Drizzle
+                } else if (weatherId >= 500 && weatherId < 600) {
+                    return '🌧️'; // Rain
+                } else if (weatherId >= 600 && weatherId < 700) {
+                    return '❄️'; // Snow
+                } else if (weatherId >= 700 && weatherId < 800) {
+                    return '🌫️'; // Atmosphere (fog, haze, etc.)
+                } else if (weatherId === 800) {
+                    return isNight ? '🌙' : '☀️'; // Clear
+                } else if (weatherId === 801) {
+                    return isNight ? '🌤️' : '🌤️'; // Few clouds
+                } else if (weatherId === 802) {
+                    return '⛅'; // Scattered clouds
+                } else if (weatherId > 802) {
+                    return '☁️'; // Broken or overcast clouds
+                } else {
+                    return '...'; // Default
+                }
+            }
+        });
+    </script>
+{% endblock %}

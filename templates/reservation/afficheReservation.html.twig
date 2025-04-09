@@ -1,0 +1,489 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Reservations{% endblock %}
+
+{% block css %}
+    {{ parent() }}
+    <style>
+        .table-container {
+            max-height: calc(100vh - 400px); /* Reduced height to prevent footer overlap */
+            overflow-y: auto;
+            margin-bottom: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            position: relative; /* For proper sticky header positioning */
+        }
+        
+        .table-container table {
+            width: 100%;
+            margin-bottom: 0; /* Remove default margin */
+        }
+        
+        .table-container table thead th {
+            position: sticky;
+            top: 0;
+            background: #343a40;
+            z-index: 10;
+            padding: 12px 15px; /* Added padding */
+        }
+        
+        .table-container table tbody td {
+            padding: 10px 15px; /* Added padding */
+            vertical-align: middle; /* Better vertical alignment */
+        }
+        
+        /* Ensure table cells don't overflow */
+        .table-container table td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px; /* Adjust based on your needs */
+        }
+        
+        /* Filter section adjustments */
+        .filter-container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        /* Modal styles remain the same */
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .filter-row {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .filter-group {
+                min-width: 100%;
+            }
+            .table-container {
+                max-height: calc(100vh - 450px); /* More space on mobile */
+            }
+        }
+        
+        .filter-container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .filter-row {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        /* Custom Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .modal-title {
+            margin: 0;
+            font-size: 1.25rem;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+            border: none;
+        }
+        .filter-group select {
+    width: 100%;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #ced4da;
+    }
+.charts-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .charts-modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 1000px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .charts-container {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .chart-wrapper {
+            flex: 1;
+            min-height: 400px;
+        }
+        .show-charts-btn {
+            margin-top: 20px;
+            background: #34b7a7;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+    </style>
+{% endblock %}
+{% block js %}
+    {{ parent() }}
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('search-input');
+            const dateFromInput = document.getElementById('date-from');
+            const dateToInput = document.getElementById('date-to');
+            const sortSelect = document.getElementById('sort-select');
+            const tableBody = document.querySelector('#reservations-table tbody');
+            const durationFilter = document.getElementById('duration-filter');
+
+            function loadFilteredData() {
+                const params = new URLSearchParams();
+                
+                const searchValue = searchInput.value.trim();
+                if (searchValue) params.append('search', searchValue);
+                if (dateFromInput.value) params.append('dateFrom', dateFromInput.value);
+                if (dateToInput.value) params.append('dateTo', dateToInput.value);
+                if (durationFilter.value) params.append('duration', durationFilter.value);
+                params.append('sort', sortSelect.value);
+
+                fetch(`{{ path('reservations') }}?${params.toString()}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Network error');
+                    return response.text();
+                })
+                .then(html => {
+                    tableBody.innerHTML = html;
+                    setupDeleteButtons();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error loading data</td></tr>`;
+                });
+            }
+
+            // Debounce the search input
+            let debounceTimer;
+            searchInput.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(loadFilteredData, 300);
+            });
+
+            // Immediate update for other filters
+            dateFromInput.addEventListener('change', loadFilteredData);
+            dateToInput.addEventListener('change', loadFilteredData);
+            sortSelect.addEventListener('change', loadFilteredData);
+            durationFilter.addEventListener('change', loadFilteredData);
+
+            // Custom modal for delete confirmation
+            const modalOverlay = document.createElement('div');
+            modalOverlay.className = 'modal-overlay';
+            modalOverlay.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirm Deletion</h5>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        Are you sure you want to delete this reservation? This action cannot be undone.
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" id="cancelDelete">Cancel</button>
+                        <button class="btn btn-danger" id="confirmDelete">Delete</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modalOverlay);
+
+            let currentDeleteForm = null;
+
+            // Function to setup delete buttons
+            function setupDeleteButtons() {
+                const deleteButtons = document.querySelectorAll('.delete-btn');
+                
+                deleteButtons.forEach(button => {
+                    button.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        currentDeleteForm = this.closest('form');
+                        modalOverlay.style.display = 'flex';
+                    });
+                });
+            }
+
+            // Charts functionality
+            const chartsModal = document.createElement('div');
+            chartsModal.className = 'charts-modal';
+            chartsModal.innerHTML = `
+                <div class="charts-modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Reservation Statistics</h5>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="charts-container">
+                        <div id="duration-chart" class="chart-wrapper"></div>
+                        <div id="space-chart" class="chart-wrapper"></div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(chartsModal);
+            
+            // Add show charts button
+            const showChartsBtn = document.createElement('button');
+            showChartsBtn.className = 'show-charts-btn';
+            showChartsBtn.textContent = 'Show Statistics';
+            document.querySelector('.filter-container').appendChild(showChartsBtn);
+            
+            // Charts modal event listeners
+            chartsModal.querySelector('.modal-close').addEventListener('click', () => {
+                chartsModal.style.display = 'none';
+            });
+            
+            showChartsBtn.addEventListener('click', () => {
+                loadChartsData();
+                chartsModal.style.display = 'flex';
+            });
+            
+            chartsModal.addEventListener('click', (e) => {
+                if (e.target === chartsModal) {
+                    chartsModal.style.display = 'none';
+                }
+            });
+            
+            // Load Google Charts
+            google.charts.load('current', {'packages':['corechart']});
+            
+            function loadChartsData() {
+                const params = new URLSearchParams();
+                
+                // Apply current filters
+                const searchValue = searchInput.value.trim();
+                if (searchValue) params.append('search', searchValue);
+                if (dateFromInput.value) params.append('dateFrom', dateFromInput.value);
+                if (dateToInput.value) params.append('dateTo', dateToInput.value);
+                if (durationFilter.value) params.append('duration', durationFilter.value);
+                params.append('charts', 'true');
+                
+                fetch(`{{ path('reservations') }}?${params.toString()}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Network error');
+                    return response.json();
+                })
+                .then(data => {
+                    drawCharts(data);
+                })
+                .catch(error => {
+                    console.error('Error loading chart data:', error);
+                });
+            }
+            
+            function drawCharts(data) {
+                // Duration Distribution Chart
+                const durationData = new google.visualization.DataTable();
+                durationData.addColumn('string', 'Duration');
+                durationData.addColumn('number', 'Count');
+                durationData.addRows(data.durationData);
+                
+                const durationChart = new google.visualization.PieChart(
+                    document.getElementById('duration-chart')
+                );
+                durationChart.draw(durationData, {
+                    title: 'Duration Distribution',
+                    pieHole: 0.4,
+                    backgroundColor: 'transparent'
+                });
+                
+                // Space Popularity Chart
+                const spaceData = new google.visualization.DataTable();
+                spaceData.addColumn('string', 'Space');
+                spaceData.addColumn('number', 'Reservations');
+                spaceData.addRows(data.spaceData);
+                
+                const spaceChart = new google.visualization.ColumnChart(
+                    document.getElementById('space-chart')
+                );
+                spaceChart.draw(spaceData, {
+                    title: 'Space Popularity',
+                    legend: { position: 'none' },
+                    backgroundColor: 'transparent'
+                });
+            }
+
+            // Initial setup
+            setupDeleteButtons();
+
+            // Modal event listeners
+            modalOverlay.querySelector('.modal-close').addEventListener('click', () => {
+                modalOverlay.style.display = 'none';
+            });
+
+            document.getElementById('cancelDelete').addEventListener('click', () => {
+                modalOverlay.style.display = 'none';
+            });
+
+            document.getElementById('confirmDelete').addEventListener('click', () => {
+                if (currentDeleteForm) {
+                    currentDeleteForm.submit();
+                }
+                modalOverlay.style.display = 'none';
+            });
+
+            // Close modal when clicking outside
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) {
+                    modalOverlay.style.display = 'none';
+                }
+            });
+
+            // Load initial data on page load
+            loadFilteredData();
+        });
+    </script>
+{% endblock %}
+
+{% block body %}
+<section id="hero" class="d-flex align-items-center">
+    <div class="container mt-5" data-aos="zoom-in">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Reservations</h1>
+            <a href="{{ path('addReservation') }}" class="btn" style="border: 2px solid #34b7a7; color: #34b7a7; border-radius: 50px; padding: 10px 20px;">Add New</a>
+        </div>
+
+        {% for message in app.flashes('success') %}
+            <div class="alert alert-success">{{ message }}</div>
+        {% endfor %}
+
+        <!-- Filter Section -->
+        <div class="filter-container">
+            <div class="filter-row">
+                <!-- Search -->
+                <div class="filter-group">
+                    <label for="search-input">Search by Sport Space Name</label>
+                    <input type="text" id="search-input" class="form-control" 
+                           placeholder="Search by sport space name"
+                           aria-label="Search reservations by sport space name">
+                </div>
+                
+                <!-- Date Range -->
+                <div class="filter-group">
+                    <label for="date-from">From Date</label>
+                    <input type="date" id="date-from" class="form-control">
+                </div>
+                
+                <div class="filter-group">
+                    <label for="date-to">To Date</label>
+                    <input type="date" id="date-to" class="form-control">
+                </div>
+                
+                <!-- Sort -->
+                <div class="filter-group">
+                    <label for="sort-select">Sort By</label>
+                    <select id="sort-select" class="form-select">
+                        <option value="date_asc">Date (Oldest)</option>
+                        <option value="date_desc">Date (Newest)</option>
+                        <option value="time_asc">Time (Earliest)</option>
+                        <option value="time_desc">Time (Latest)</option>
+                        <option value="duration_asc">Duration (Shortest)</option>
+                        <option value="duration_desc">Duration (Longest)</option>
+                    </select>
+                </div>
+                {# Add this in the filter-row section, after the sort select #}
+<div class="filter-group">
+    <label for="duration-filter">Duration</label>
+    <select id="duration-filter" class="form-select">
+        <option value="">All Durations</option>
+        <option value="0.5">0.5 hours</option>
+        <option value="1">1 hour</option>
+        <option value="1.5">1.5 hours</option>
+        <option value="2">2 hours</option>
+        <option value="2.5">2.5 hours</option>
+        <option value="3">3 hours</option>
+    </select>
+</div>
+            </div>
+        </div>
+
+        <!-- Scrollable Table -->
+        <div class="table-container">
+            <table class="table table-striped table-hover" id="reservations-table">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Duration</th>
+                        <th>Sport Space</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Initial rows will be loaded via AJAX -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endblock %}

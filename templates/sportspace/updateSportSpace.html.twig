@@ -1,0 +1,77 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Edit Sport Space{% endblock %}
+
+{% block body %}
+    <div class="container d-flex flex-column align-items-center" data-aos="zoom-in" data-aos-delay="100" style="padding-top: 120px;">
+        <!-- Back to List Link (Top Left) -->
+        <div class="w-100 d-flex justify-content-start mb-5" style="position: relative; z-index: 1000; margin-top: 20px; margin-bottom: 30px;">
+            <a href="{{ path('sportspaces') }}" class="btn" style="border: 2px solid #34b7a7; color: #34b7a7; border-radius: 50px;margin-top:45px; padding: 10px 20px; transition: all 0.3s ease-in-out;" onmouseover="this.style.backgroundColor='#3dc8b7'; this.style.color='#fff';" onmouseout="this.style.backgroundColor='transparent'; this.style.color='#34b7a7';">Back to List</a>
+        </div>
+
+        <!-- Title -->
+        <h1 class="mb-4">Edit Sport Space</h1>
+
+        <!-- Flash Messages -->
+        {% for message in app.flashes('success') %}
+            <div class="alert alert-success w-100" role="alert">{{ message }}</div>
+        {% endfor %}
+        {% for message in app.flashes('error') %}
+            <div class="alert alert-danger w-100" role="alert">{{ message }}</div>
+        {% endfor %}
+
+        <!-- Form with Border -->
+        <div class="w-100 p-4 border rounded shadow-sm" style="max-width: 600px; background-color: #fff;">
+            {{ form_start(f, {'attr': {'class': 'needs-validation', 'novalidate': ''}}) }}
+                <!-- Name Field -->
+                <div class="form-group mb-3">
+                    {{ form_label(f.name, null, {'label_attr': {'class': 'form-label'}}) }}
+                    {{ form_widget(f.name, {'attr': {'class': 'form-control'}}) }}
+                    {{ form_errors(f.name) }}
+                </div>
+
+                <!-- Location Field -->
+                <div class="form-group mb-3">
+                    {{ form_label(f.location, null, {'label_attr': {'class': 'form-label'}}) }}
+                    {{ form_widget(f.location, {'attr': {'class': 'form-control'}}) }}
+                    {{ form_errors(f.location) }}
+                </div>
+
+                <!-- Email Field -->
+                <div class="form-group mb-3">
+                    {{ form_label(f.email, null, {'label_attr': {'class': 'form-label'}}) }}
+                    {{ form_widget(f.email, {'attr': {'class': 'form-control', 'type': 'email'}}) }}
+                    {{ form_errors(f.email) }}
+                </div>
+
+                <!-- Phone Field -->
+                <div class="form-group mb-3">
+                    {{ form_label(f.phone, null, {'label_attr': {'class': 'form-label'}}) }}
+                    {{ form_widget(f.phone, {'attr': {'class': 'form-control', 'type': 'number'}}) }}
+                    {{ form_errors(f.phone) }}
+                </div>
+
+                <!-- Sport Type Field -->
+                <div class="form-group mb-3">
+                    {{ form_label(f.type, null, {'label_attr': {'class': 'form-label'}}) }}
+                    {{ form_widget(f.type, {'attr': {'class': 'form-select'}}) }}
+                    {{ form_errors(f.type) }}
+                </div>
+
+                <!-- Availability Field -->
+                <div class="form-group mb-3">
+                    {{ form_label(f.availability, null, {'label_attr': {'class': 'form-label'}}) }}
+                    <div class="d-flex gap-3">
+                        {{ form_widget(f.availability, {'attr': {'class': 'form-check-input'}}) }}
+                    </div>
+                    {{ form_errors(f.availability) }}
+                </div>
+
+                <!-- Update Button (Centered Below) -->
+                <div class="form-group text-center mt-4">
+                    {{ form_widget(f.edit ?: f.save, {'attr': {'class': 'btn btn-primary', 'style': 'background-color: #34b7a7; border-color: #34b7a7; border-radius: 50px; padding: 10px 30px;'}}) }}
+                </div>
+            {{ form_end(f) }}
+        </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,340 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Add Sport Space{% endblock %}
+
+{% block css %}
+    {{ parent() }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        /* Body and Layout */
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            padding-top: 80px; /* Increased from default for more navbar space */
+        }
+        
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 6rem 0 2rem; /* 6rem top padding = ~96px */
+            min-height: calc(100vh - 150px);
+        }
+
+        .form-container {
+            max-width: 600px;
+            width: 100%;
+            padding: 2.5rem;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+            margin: 3rem auto; /* Increased top margin */
+        }
+
+        /* Form Elements */
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .form-control, .form-select {
+            width: 100%;
+            padding: 0.85rem;
+            font-size: 1rem;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+            margin-bottom: 1rem;
+            height: 50px;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background-color: #34b7a7;
+            border-color: #34b7a7;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2da194;
+            border-color: #2da194;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .btn-primary:active {
+            background-color: #268f83;
+            border-color: #268f83;
+            transform: translateY(0);
+        }
+        
+        .btn-back, .btn-weather {
+            border: 2px solid #34b7a7;
+            color: #34b7a7;
+            border-radius: 50px;
+            padding: 10px 20px;
+            font-size: 16px;
+            text-decoration: none;
+            transition: background-color 0.3s, color 0.3s;
+            position: absolute;
+            top: 100px; /* Increased from 67px */
+        }
+        
+        .btn-back {
+            left: 20px;
+        }
+        
+        .btn-weather {
+            right: 20px;
+        }
+        
+        .btn-back:hover, .btn-weather:hover {
+            background-color: #34b7a7;
+            color: white;
+        }
+
+        /* Validation */
+        .invalid-feedback {
+            color: #dc3545;
+            font-size: 0.875rem;
+        }
+
+        /* Weather Popup */
+        .weather-man-popup {
+            position: fixed;
+            top: 20%;
+            right: 20px;
+            background: linear-gradient(135deg, #34b7a7 0%, #2da194 100%);
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            z-index: 1000;
+            width: 320px;
+            display: none;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .weather-man-popup.show {
+            display: block !important;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .weather-man-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .weather-man-location {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .weather-man-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .weather-man-close:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .weather-main {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .weather-icon {
+            font-size: 3.5rem;
+            margin-right: 1rem;
+        }
+        
+        .weather-temp {
+            font-size: 2.5rem;
+            font-weight: 300;
+        }
+        
+        .weather-desc {
+            text-transform: capitalize;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .weather-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.8rem;
+            margin-top: 1rem;
+        }
+        
+        .weather-detail {
+            background: rgba(255,255,255,0.1);
+            padding: 0.8rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .detail-label {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            margin-bottom: 0.3rem;
+        }
+        
+        .detail-value {
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        
+        .weather-man-error {
+            color: #ffdddd;
+            background: rgba(255,0,0,0.2);
+            padding: 0.8rem;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 1rem;
+        }
+        
+        .weather-footer {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        /* Additional Spacing */
+        h1.mb-4 {
+            margin-top: 1.5rem; /* Added space above the title */
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+<section id="hero">
+    <div class="container">
+        <div class="form-container">
+            <div class="header-container">
+        <a href="{{ path('sportspaces') }}" class="btn-back">Back to List</a>
+    </div>
+            <div class="header-container">
+                <h2 class="form-title">Add New Sport Space</h2>
+            </div>
+
+            {{ form_start(f) }}
+
+                <div class="form-group">
+                    {{ form_label(f.name) }}
+                    {{ form_widget(f.name, {'attr': {'class': 'form-control'}}) }}
+                </div>
+
+                <div class="form-group">
+                    {{ form_label(f.type) }}
+                    {{ form_widget(f.type, {'attr': {'class': 'form-select'}}) }}
+                </div>
+
+                <div class="form-group">
+                    {{ form_label(f.location) }}
+                    <input type="text" id="location-input" class="form-control" placeholder="Click to select location" readonly>
+                    <button type="button" id="open-map-btn" class="btn btn-secondary mt-2">Select Location</button>
+                    {{ form_widget(f.location, {'attr': {'class': 'form-control', 'style': 'display:none'}}) }}
+                </div>
+
+                <div class="form-group">
+                    {{ form_label(f.email) }}
+                    {{ form_widget(f.email, {'attr': {'class': 'form-control'}}) }}
+                </div>
+
+                <div class="form-group">
+                    {{ form_label(f.phone) }}
+                    {{ form_widget(f.phone, {'attr': {'class': 'form-control'}}) }}
+                </div>
+                <div class="form-group">
+                    {{ form_label(f.availability) }}
+                    {{ form_widget(f.availability) }}
+                </div>
+                <div class="form-group text-center">
+                    <button type="submit" class="btn-submit">Submit</button>
+                </div>
+
+            {{ form_end(f) }}
+        </div>
+    </div>
+</section>
+
+<!-- Map Popup -->
+<div id="map-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <input type="text" id="search-box" placeholder="Search location...">
+        <div id="search-results"></div>
+        <div id="map" class="map-container"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+    {{ parent() }}
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        let modal = document.getElementById("map-modal");
+        let openBtn = document.getElementById("open-map-btn");
+        let closeBtn = document.querySelector(".close");
+        let locationInput = document.getElementById("location-input");
+        let hiddenLocationField = document.querySelector("[name='{{ f.location.vars.full_name }}']");
+
+        let map = L.map('map').setView([36.8065, 10.1815], 13); // Default view on Tunis
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+        let marker;
+
+        openBtn.onclick = function() {
+            modal.style.display = "block";
+            setTimeout(() => map.invalidateSize(), 200);
+        };
+
+        closeBtn.onclick = function() { modal.style.display = "none"; };
+
+        document.getElementById("search-box").addEventListener("keyup", function() {
+            let query = this.value;
+            if (query.length < 3) return;
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}`)
+                .then(response => response.json())
+                .then(data => {
+                    let resultsDiv = document.getElementById("search-results");
+                    resultsDiv.innerHTML = "";
+                    data.forEach(place => {
+                        let div = document.createElement("div");
+                        div.className = "search-item";
+                        div.innerHTML = place.display_name;
+                        div.onclick = function() {
+                            locationInput.value = place.display_name;
+                            hiddenLocationField.value = place.display_name;
+                            if (marker) map.removeLayer(marker);
+                            marker = L.marker([place.lat, place.lon]).addTo(map);
+                            map.setView([place.lat, place.lon], 15);
+                            modal.style.display = "none";
+                        };
+                        resultsDiv.appendChild(div);
+                    });
+                });
+        });
+    </script>
+{% endblock %}
